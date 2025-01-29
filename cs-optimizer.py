@@ -8,14 +8,13 @@ def calculate_distance(p1: Tuple[int, int], p2: Tuple[int, int]) -> float:
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
 
-def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
+def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
     List[Tuple[int, Tuple[int, int], Tuple[int, int], float]], float]:
     path = []
     remaining_stitches = set()
     step_number = 1
     total_distance = 0.0
     used_stitches = set()
-    lookahead_depth = 15  # Consider 3 steps ahead for optimization
 
     for x, y in boxes:
         stitch1 = ((x, y), (x + 1, y + 1))
@@ -38,27 +37,7 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
                 if direction in used_stitches or (previous_end and direction[0] == previous_end):
                     continue
                 direct_distance = distance.euclidean(current_position, direction[0])
-
-                # Lookahead to anticipate large jumps
-                future_positions = [direction[1]]
-                lookahead_cost = 0.0
-                temp_remaining = remaining_stitches.copy()
-                temp_used = used_stitches.copy()
-                temp_current = direction[1]
-
-                for _ in range(lookahead_depth):
-                    next_stitch = min(
-                        temp_remaining,
-                        key=lambda s: distance.euclidean(temp_current, s[0]),
-                        default=None
-                    )
-                    if next_stitch:
-                        lookahead_cost += distance.euclidean(temp_current, next_stitch[0])
-                        temp_current = next_stitch[1]
-                        temp_remaining.remove(next_stitch)
-                        temp_used.add(next_stitch)
-
-                total_cost = direct_distance + lookahead_cost
+                total_cost = direct_distance
 
                 if total_cost < best_distance:
                     best_distance = total_cost
@@ -94,7 +73,7 @@ def main():
         (17, 19), (16, 20), (19, 18)
     ]
 
-    optimal_path_test, total_distance_test = find_optimal_path_dynamic_start(design)
+    optimal_path_test, total_distance_test = find_optimal_path(design)
 
     for step in optimal_path_test:
         print(f"Step {step[0]}: Stitch from {step[1]} to {step[2]}, Transition Distance: {step[3]:.2f}")
