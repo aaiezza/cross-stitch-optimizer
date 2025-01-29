@@ -10,12 +10,11 @@ def calculate_distance(p1: Tuple[int, int], p2: Tuple[int, int]) -> float:
 
 def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
     List[Tuple[int, Tuple[int, int], Tuple[int, int], float]], float]:
-    path = []
     remaining_stitches = set()
-    step_number = 1
     total_distance = float('inf')
-    used_stitches = set()
     best_path = []
+    alpha = 0.3  # Decay weight factor for lookahead
+    lookahead_depth = 12
 
     for x, y in boxes:
         stitch1 = ((x, y), (x + 1, y + 1))
@@ -47,7 +46,26 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
                     if direction in temp_used_stitches or (previous_end and direction[0] == previous_end):
                         continue
                     direct_distance = distance.euclidean(current_position, direction[0])
-                    total_cost = direct_distance
+
+                    # Lookahead with decay weighting
+                    lookahead_cost = 0.0
+                    temp_current = direction[1]
+                    temp_remaining_copy = temp_remaining.copy()
+                    decay_factor = 2.0
+
+                    for depth in range(lookahead_depth):
+                        next_stitch = min(
+                            temp_remaining_copy,
+                            key=lambda s: distance.euclidean(temp_current, s[0]),
+                            default=None
+                        )
+                        if next_stitch:
+                            lookahead_cost += decay_factor * distance.euclidean(temp_current, next_stitch[0])
+                            temp_current = next_stitch[1]
+                            temp_remaining_copy.remove(next_stitch)
+                            decay_factor *= alpha  # Reduce weight for further steps
+
+                    total_cost = direct_distance + lookahead_cost
 
                     if total_cost < best_distance:
                         best_distance = total_cost
