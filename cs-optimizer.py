@@ -13,8 +13,9 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
     path = []
     remaining_stitches = set()
     step_number = 1
-    total_distance = 0.0
+    total_distance = float('inf')
     used_stitches = set()
+    best_path = []
 
     for x, y in boxes:
         stitch1 = ((x, y), (x + 1, y + 1))
@@ -22,47 +23,59 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
         remaining_stitches.add(stitch1)
         remaining_stitches.add(stitch2)
 
-    current_position = min(
+    # Evaluate multiple starting positions
+    candidate_starts = sorted(
         {start for start, end in remaining_stitches},
-        key=lambda pinhole: pinhole[0] + pinhole[1]
+        key=lambda pinhole: (pinhole[0] + pinhole[1], pinhole[0], pinhole[1])
     )
 
-    previous_end = None
-    while remaining_stitches:
-        best_stitch = None
-        best_distance = float('inf')
+    for start_position in candidate_starts:
+        temp_remaining = remaining_stitches.copy()
+        temp_used_stitches = set()
+        temp_path = []
+        temp_total_distance = 0.0
+        current_position = start_position
+        previous_end = None
+        temp_step_number = 1
 
-        for stitch in remaining_stitches:
-            for direction in [stitch, (stitch[1], stitch[0])]:  # Consider both stitch orientations
-                if direction in used_stitches or (previous_end and direction[0] == previous_end):
-                    continue
-                direct_distance = distance.euclidean(current_position, direction[0])
-                total_cost = direct_distance
+        while temp_remaining:
+            best_stitch = None
+            best_distance = float('inf')
 
-                if total_cost < best_distance:
-                    best_distance = total_cost
-                    best_stitch = direction
+            for stitch in temp_remaining:
+                for direction in [stitch, (stitch[1], stitch[0])]:  # Consider both stitch orientations
+                    if direction in temp_used_stitches or (previous_end and direction[0] == previous_end):
+                        continue
+                    direct_distance = distance.euclidean(current_position, direction[0])
+                    total_cost = direct_distance
 
-        if best_stitch is None:
-            break
+                    if total_cost < best_distance:
+                        best_distance = total_cost
+                        best_stitch = direction
 
-        remaining_stitches.remove(
-            best_stitch if best_stitch in remaining_stitches else (best_stitch[1], best_stitch[0]))
-        start, end = best_stitch
+            if best_stitch is None:
+                break
 
-        transition_distance = calculate_distance(previous_end, start) if previous_end else 0.0
-        total_distance += transition_distance
-        total_distance += calculate_distance(start, end)
+            temp_remaining.remove(best_stitch if best_stitch in temp_remaining else (best_stitch[1], best_stitch[0]))
+            start, end = best_stitch
 
-        path.append((step_number, start, end, transition_distance))
-        step_number += 1
+            transition_distance = calculate_distance(previous_end, start) if previous_end else 0.0
+            temp_total_distance += transition_distance
+            temp_total_distance += calculate_distance(start, end)
 
-        used_stitches.add(best_stitch)
-        used_stitches.add((best_stitch[1], best_stitch[0]))  # Mark both directions as used
-        current_position = end
-        previous_end = end
+            temp_path.append((temp_step_number, start, end, transition_distance))
+            temp_step_number += 1
 
-    return path, total_distance
+            temp_used_stitches.add(best_stitch)
+            temp_used_stitches.add((best_stitch[1], best_stitch[0]))  # Mark both directions as used
+            current_position = end
+            previous_end = end
+
+        if temp_total_distance < total_distance:
+            total_distance = temp_total_distance
+            best_path = temp_path
+
+    return best_path, total_distance
 
 
 def main():
