@@ -15,6 +15,7 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
     step_number = 1
     total_distance = 0.0
     used_stitches = set()
+    lookahead_depth = 15  # Consider 3 steps ahead for optimization
 
     for x, y in boxes:
         stitch1 = ((x, y), (x + 1, y + 1))
@@ -37,12 +38,27 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
                 if direction in used_stitches or (previous_end and direction[0] == previous_end):
                     continue
                 direct_distance = distance.euclidean(current_position, direction[0])
-                lookahead_distance = sum(
-                    distance.euclidean(direction[1], next_stitch[0])
-                    for next_stitch in remaining_stitches if next_stitch != stitch
-                ) / max(1, len(remaining_stitches) - 1)
 
-                total_cost = direct_distance + lookahead_distance
+                # Lookahead to anticipate large jumps
+                future_positions = [direction[1]]
+                lookahead_cost = 0.0
+                temp_remaining = remaining_stitches.copy()
+                temp_used = used_stitches.copy()
+                temp_current = direction[1]
+
+                for _ in range(lookahead_depth):
+                    next_stitch = min(
+                        temp_remaining,
+                        key=lambda s: distance.euclidean(temp_current, s[0]),
+                        default=None
+                    )
+                    if next_stitch:
+                        lookahead_cost += distance.euclidean(temp_current, next_stitch[0])
+                        temp_current = next_stitch[1]
+                        temp_remaining.remove(next_stitch)
+                        temp_used.add(next_stitch)
+
+                total_cost = direct_distance + lookahead_cost
 
                 if total_cost < best_distance:
                     best_distance = total_cost
