@@ -3,11 +3,13 @@ import math
 from scipy.spatial import distance
 import heapq
 
+
 def calculate_distance(p1: Tuple[int, int], p2: Tuple[int, int]) -> float:
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
+
 def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
-    List[Tuple[int, Tuple[int, int], Tuple[int, int]]], float]:
+    List[Tuple[int, Tuple[int, int], Tuple[int, int], float]], float]:
     path = []
     remaining_stitches = set()
     step_number = 1
@@ -25,6 +27,7 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
         key=lambda pinhole: pinhole[0] + pinhole[1]
     )
 
+    previous_end = None
     while remaining_stitches:
         best_stitch = None
         best_distance = float('inf')
@@ -39,11 +42,15 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
                     for next_stitch in remaining_stitches if next_stitch != stitch
                 ) / max(1, len(remaining_stitches) - 1)
 
-                is_diagonal = abs(direction[0][0] - direction[1][0]) == 1 and abs(direction[0][1] - direction[1][1]) == 1
+                is_diagonal = abs(direction[0][0] - direction[1][0]) == 1 and abs(
+                    direction[0][1] - direction[1][1]) == 1
                 if not is_diagonal:
                     direct_distance *= 2.0
 
-                total_cost = direct_distance + lookahead_distance
+                # Apply massive penalty if the next stitch starts at the previous end coordinate
+                penalty = 1000.0 if previous_end and direction[0] == previous_end else 0.0
+                total_cost = direct_distance + lookahead_distance + penalty
+
                 if total_cost < best_distance:
                     best_distance = total_cost
                     best_stitch = direction
@@ -51,20 +58,24 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
         if best_stitch is None:
             break
 
-        remaining_stitches.remove(best_stitch if best_stitch in remaining_stitches else (best_stitch[1], best_stitch[0]))
+        remaining_stitches.remove(
+            best_stitch if best_stitch in remaining_stitches else (best_stitch[1], best_stitch[0]))
         start, end = best_stitch
 
-        total_distance += calculate_distance(current_position, start)
+        transition_distance = calculate_distance(previous_end, start) if previous_end else 0.0
+        total_distance += transition_distance
         total_distance += calculate_distance(start, end)
 
-        path.append((step_number, start, end))
+        path.append((step_number, start, end, transition_distance))
         step_number += 1
 
         used_stitches.add(best_stitch)
         used_stitches.add((best_stitch[1], best_stitch[0]))  # Mark both directions as used
         current_position = end
+        previous_end = end
 
     return path, total_distance
+
 
 def main():
     design = [
@@ -77,8 +88,9 @@ def main():
     optimal_path_test, total_distance_test = find_optimal_path_dynamic_start(design)
 
     for step in optimal_path_test:
-        print(f"Step {step[0]}: Stitch from {step[1]} to {step[2]}")
+        print(f"Step {step[0]}: Stitch from {step[1]} to {step[2]}, Transition Distance: {step[3]:.2f}")
     print(f"Total distance traveled: {total_distance_test:.2f}")
+
 
 if __name__ == "__main__":
     main()
