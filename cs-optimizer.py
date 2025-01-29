@@ -42,11 +42,6 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
                     for next_stitch in remaining_stitches if next_stitch != stitch
                 ) / max(1, len(remaining_stitches) - 1)
 
-                is_diagonal = abs(direction[0][0] - direction[1][0]) == 1 and abs(
-                    direction[0][1] - direction[1][1]) == 1
-                if not is_diagonal:
-                    direct_distance *= 2.0
-
                 total_cost = direct_distance + lookahead_distance
 
                 if total_cost < best_distance:
