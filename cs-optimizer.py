@@ -12,11 +12,13 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
     remaining_stitches = set()
     step_number = 1
     total_distance = 0.0
-    used_pinhole_positions = set()
+    used_stitches = set()
 
     for x, y in boxes:
-        remaining_stitches.add(((x, y), (x + 1, y + 1)))
-        remaining_stitches.add(((x + 1, y), (x, y + 1)))
+        stitch1 = ((x, y), (x + 1, y + 1))
+        stitch2 = ((x + 1, y), (x, y + 1))
+        remaining_stitches.add(stitch1)
+        remaining_stitches.add(stitch2)
 
     current_position = min(
         {start for start, end in remaining_stitches},
@@ -28,23 +30,29 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
         best_distance = float('inf')
 
         for stitch in remaining_stitches:
-            lookahead_distance = sum(
-                distance.euclidean(stitch[1], next_stitch[0])
-                for next_stitch in remaining_stitches if next_stitch != stitch
-            ) / max(1, len(remaining_stitches) - 1)
-            total_cost = distance.euclidean(current_position, stitch[0]) + lookahead_distance
-            if total_cost < best_distance:
-                best_distance = total_cost
-                best_stitch = stitch
+            for direction in [stitch, (stitch[1], stitch[0])]:  # Consider both stitch orientations
+                if direction in used_stitches:
+                    continue
+                direct_distance = distance.euclidean(current_position, direction[0])
+                lookahead_distance = sum(
+                    distance.euclidean(direction[1], next_stitch[0])
+                    for next_stitch in remaining_stitches if next_stitch != stitch
+                ) / max(1, len(remaining_stitches) - 1)
+
+                is_diagonal = abs(direction[0][0] - direction[1][0]) == 1 and abs(direction[0][1] - direction[1][1]) == 1
+                if not is_diagonal:
+                    direct_distance *= 2.0
+
+                total_cost = direct_distance + lookahead_distance
+                if total_cost < best_distance:
+                    best_distance = total_cost
+                    best_stitch = direction
 
         if best_stitch is None:
             break
 
-        remaining_stitches.remove(best_stitch)
+        remaining_stitches.remove(best_stitch if best_stitch in remaining_stitches else (best_stitch[1], best_stitch[0]))
         start, end = best_stitch
-
-        if start in used_pinhole_positions:
-            continue
 
         total_distance += calculate_distance(current_position, start)
         total_distance += calculate_distance(start, end)
@@ -52,8 +60,8 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
         path.append((step_number, start, end))
         step_number += 1
 
-        used_pinhole_positions.add(start)
-        used_pinhole_positions.add(end)
+        used_stitches.add(best_stitch)
+        used_stitches.add((best_stitch[1], best_stitch[0]))  # Mark both directions as used
         current_position = end
 
     return path, total_distance
