@@ -34,7 +34,7 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
 
         for stitch in remaining_stitches:
             for direction in [stitch, (stitch[1], stitch[0])]:  # Consider both stitch orientations
-                if direction in used_stitches:
+                if direction in used_stitches or (previous_end and direction[0] == previous_end):
                     continue
                 direct_distance = distance.euclidean(current_position, direction[0])
                 lookahead_distance = sum(
@@ -47,9 +47,7 @@ def find_optimal_path_dynamic_start(boxes: List[Tuple[int, int]]) -> Tuple[
                 if not is_diagonal:
                     direct_distance *= 2.0
 
-                # Apply massive penalty if the next stitch starts at the previous end coordinate
-                penalty = 1000.0 if previous_end and direction[0] == previous_end else 0.0
-                total_cost = direct_distance + lookahead_distance + penalty
+                total_cost = direct_distance + lookahead_distance
 
                 if total_cost < best_distance:
                     best_distance = total_cost
