@@ -1,12 +1,49 @@
-from typing import List, Tuple
+from typing import List, Tuple, Set
 import math
+import time
 from scipy.spatial import distance
+
 
 def calculate_distance(p1: Tuple[int, int], p2: Tuple[int, int]) -> float:
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
+
+def get_candidate_starts(remaining_stitches: set) -> List[Tuple[int, int]]:
+    return sorted(
+        {start for start, end in remaining_stitches},
+        key=lambda pinhole: (pinhole[0] + pinhole[1], pinhole[0], pinhole[1])
+    )
+
+
+def get_legal_next_stitches(temp_remaining: Set[Tuple[Tuple[int, int], Tuple[int, int]]],
+                            temp_used_stitches: Set[Tuple[Tuple[int, int], Tuple[int, int]]],
+                            previous_end: Tuple[int, int]) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
+    legal_stitches = []
+    for stitch in temp_remaining:
+        for direction in [stitch, (stitch[1], stitch[0])]:
+            if direction in temp_used_stitches or (previous_end and direction[0] == previous_end):
+                continue
+            legal_stitches.append(direction)
+    return legal_stitches
+
+
+def find_best_next_stitch(legal_stitches: List[Tuple[Tuple[int, int], Tuple[int, int]]],
+                          current_position: Tuple[int, int]) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    best_stitch = None
+    best_distance = float('inf')
+
+    for stitch in legal_stitches:
+        direct_distance = distance.euclidean(current_position, stitch[0])
+        if direct_distance < best_distance:
+            best_distance = direct_distance
+            best_stitch = stitch
+
+    return best_stitch
+
+
 def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
     List[Tuple[int, Tuple[int, int], Tuple[int, int], float]], float, float]:
+    best_stitch_distance = 0
     remaining_stitches = set()
     best_path = []
     min_transition_distance = float('inf')
@@ -17,10 +54,7 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
         remaining_stitches.add(stitch1)
         remaining_stitches.add(stitch2)
 
-    candidate_starts = sorted(
-        {start for start, end in remaining_stitches},
-        key=lambda pinhole: (pinhole[0] + pinhole[1], pinhole[0], pinhole[1])
-    )
+    candidate_starts = get_candidate_starts(remaining_stitches)
 
     for start_position in candidate_starts:
         temp_remaining = remaining_stitches.copy()
@@ -33,18 +67,8 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
         temp_step_number = 1
 
         while temp_remaining:
-            best_stitch = None
-            best_distance = float('inf')
-
-            for stitch in temp_remaining:
-                for direction in [stitch, (stitch[1], stitch[0])]:
-                    if direction in temp_used_stitches or (previous_end and direction[0] == previous_end):
-                        continue
-                    direct_distance = distance.euclidean(current_position, direction[0])
-                    if direct_distance < best_distance:
-                        best_distance = direct_distance
-                        best_stitch = direction
-
+            legal_stitches = get_legal_next_stitches(temp_remaining, temp_used_stitches, previous_end)
+            best_stitch = find_best_next_stitch(legal_stitches, current_position)
             if best_stitch is None:
                 break
 
@@ -72,6 +96,7 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
     total_distance = min_transition_distance + best_stitch_distance
     return best_path, min_transition_distance, total_distance
 
+
 def main():
     design = [
         (7, 18), (8, 18), (6, 19), (7, 19), (8, 19), (7, 20), (8, 20), (9, 20),
@@ -80,12 +105,16 @@ def main():
         (17, 19), (16, 20), (19, 18)
     ]
 
+    start_time = time.time()
     optimal_path_test, total_transition_distance, total_distance = find_optimal_path(design)
+    end_time = time.time()
 
     for step in optimal_path_test:
         print(f"Step {step[0]}: Stitch from {step[1]} to {step[2]}, Transition Distance: {step[3]:.2f}")
     print(f"Total transition distance traveled: {total_transition_distance:.2f}")
     print(f"Total distance traveled (including stitches): {total_distance:.2f}")
+    print(f"Execution time: {end_time - start_time:.4f} seconds")
+
 
 if __name__ == "__main__":
     main()
