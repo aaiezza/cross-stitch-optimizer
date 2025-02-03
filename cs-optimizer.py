@@ -1,6 +1,7 @@
 from typing import List, Tuple, Set
 import math
 import time
+import random
 from scipy.spatial import distance
 
 
@@ -39,6 +40,30 @@ def find_best_next_stitch(legal_stitches: List[Tuple[Tuple[int, int], Tuple[int,
             best_stitch = stitch
 
     return best_stitch
+
+
+def simulated_annealing(path: List[Tuple[int, Tuple[int, int], Tuple[int, int], float]], initial_temp: float,
+                        cooling_rate: float) -> List[Tuple[int, Tuple[int, int], Tuple[int, int], float]]:
+    current_path = path[:]
+    best_path = path[:]
+    best_cost = sum(step[3] for step in path)
+    temp = initial_temp
+
+    while temp > 1:
+        i, j = sorted(random.sample(range(len(path)), 2))
+        new_path = current_path[:]
+        new_path[i], new_path[j] = new_path[j], new_path[i]
+
+        new_cost = sum(step[3] for step in new_path)
+
+        if new_cost < best_cost or random.random() < math.exp((best_cost - new_cost) / temp):
+            current_path = new_path
+            best_cost = new_cost
+            best_path = new_path[:]
+
+        temp *= cooling_rate
+
+    return best_path
 
 
 def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
@@ -93,6 +118,7 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
             best_path = temp_path
             best_stitch_distance = temp_stitch_distance
 
+    best_path = sorted(simulated_annealing(best_path, initial_temp=1000, cooling_rate=0.995), key=lambda step: step[0])
     total_distance = min_transition_distance + best_stitch_distance
     return best_path, min_transition_distance, total_distance
 
@@ -110,7 +136,8 @@ def main():
     end_time = time.time()
 
     for step in optimal_path_test:
-        print(f"Step {step[0]}: Stitch from {step[1]} to {step[2]}, Transition Distance: {step[3]:.2f}")
+        print(
+            f"Step {step[0]:02d}: Stitch from ({step[1][0]:02d}, {step[1][1]:02d}) to ({step[2][0]:02d}, {step[2][1]:02d}), Transition Distance: {step[3]:.2f}")
     print(f"Total transition distance traveled: {total_transition_distance:.2f}")
     print(f"Total distance traveled (including stitches): {total_distance:.2f}")
     print(f"Execution time: {end_time - start_time:.4f} seconds")
