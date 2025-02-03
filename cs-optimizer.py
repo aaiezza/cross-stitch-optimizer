@@ -41,6 +41,39 @@ def find_best_next_stitch(legal_stitches: List[Tuple[Tuple[int, int], Tuple[int,
     return best_stitch
 
 
+import random
+
+
+def genetic_algorithm_optimize(initial_path: List[Tuple[int, Tuple[int, int], Tuple[int, int], float]],
+                               population_size=900, generations=1800, mutation_rate=0.95) -> List[
+    Tuple[int, Tuple[int, int], Tuple[int, int], float]]:
+    def fitness(path):
+        return sum(step[3] for step in path)  # Minimize total transition distance
+
+    def mutate(path):
+        if random.random() < mutation_rate:
+            idx1, idx2 = random.sample(range(len(path)), 2)
+            path[idx1], path[idx2] = path[idx2], path[idx1]
+        return path
+
+    def crossover(parent1, parent2):
+        cut = random.randint(1, len(parent1) - 1)
+        child = parent1[:cut] + [step for step in parent2 if step not in parent1[:cut]]
+        return child
+
+    population = [initial_path.copy() for _ in range(population_size)]
+    for _ in range(generations):
+        population = sorted(population, key=fitness)
+        new_population = population[:population_size // 2]  # Keep best half
+        while len(new_population) < population_size:
+            p1, p2 = random.sample(new_population, 2)
+            child = mutate(crossover(p1, p2))
+            new_population.append(child)
+        population = new_population
+
+    return min(population, key=fitness)
+
+
 def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
     List[Tuple[int, Tuple[int, int], Tuple[int, int], float]], float, float]:
     best_stitch_distance = 0
@@ -94,6 +127,7 @@ def find_optimal_path(boxes: List[Tuple[int, int]]) -> Tuple[
             best_stitch_distance = temp_stitch_distance
 
     total_distance = min_transition_distance + best_stitch_distance
+    best_path = genetic_algorithm_optimize(best_path)
     return best_path, min_transition_distance, total_distance
 
 
@@ -110,7 +144,8 @@ def main():
     end_time = time.time()
 
     for step in optimal_path_test:
-        print(f"Step {step[0]}: Stitch from {step[1]} to {step[2]}, Transition Distance: {step[3]:.2f}")
+        print(
+            f"Step {step[0]:02d}: Stitch from ({step[1][0]:02d}, {step[1][1]:02d}) to ({step[2][0]:02d}, {step[2][1]:02d}), Transition Distance: {step[3]:.2f}")
     print(f"Total transition distance traveled: {total_transition_distance:.2f}")
     print(f"Total distance traveled (including stitches): {total_distance:.2f}")
     print(f"Execution time: {end_time - start_time:.4f} seconds")
